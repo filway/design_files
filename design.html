@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>云峰裁剪</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: -apple-system, sans-serif;
+      }
+
+      /* 图片导航容器 */
+      .nav-container {
+        overflow-x: auto;
+        white-space: nowrap;
+        padding: 15px 10px;
+        -webkit-overflow-scrolling: touch;
+        background: #fff;
+      }
+
+      /* 隐藏滚动条 */
+      .nav-container::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* 导航图片项 */
+      .nav-item {
+        display: inline-block;
+        width: 100px;
+        height: 100px;
+        margin-right: 15px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+      }
+
+      .nav-item.active {
+        border-color: #1677ff;
+      }
+
+      .nav-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      /* 预览区域 */
+      .preview-area {
+        height: 60vh;
+        margin: 20px;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        background: #f0f0f0;
+      }
+
+      .previewImage {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        transition: opacity 0.3s;
+      }
+
+      .preview-watermark {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 24px;
+        color: rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+      }
+
+      /* 生成按钮 */
+      .generate-btn {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        background: #1677ff;
+        color: white;
+        padding: 16px;
+        border-radius: 25px;
+        border: none;
+        font-size: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+      /* 添加加载状态 */
+      .preview-area::after {
+        content: '加载中...';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #666;
+        display: none;
+      }
+
+      .preview-area.loading::after {
+        display: block;
+      }
+
+      .preview-area.loading .previewImage {
+        opacity: 0;
+      }
+    </style>
+    <style type="text/css">
+      #_copy {
+        align-items: center;
+        background: #4494d5;
+        border-radius: 3px;
+        color: #fff;
+        cursor: pointer;
+        display: flex;
+        font-size: 13px;
+        height: 30px;
+        justify-content: center;
+        position: absolute;
+        width: 60px;
+        z-index: 1000;
+      }
+      #select-tooltip,
+      #sfModal,
+      .modal-backdrop,
+      div[id^='reader-helper'] {
+        display: none !important;
+      }
+      .modal-open {
+        overflow: auto !important;
+      }
+      ._sf_adjust_body {
+        padding-right: 0 !important;
+      }
+      .enable_copy_btns_div {
+        position: fixed;
+        width: 154px;
+        left: 10px;
+        top: 45%;
+        background: #e7f1ff;
+        border: 2px solid #4595d5;
+        font-weight: 600;
+        border-radius: 2px;
+        font-family: -apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC,
+          Hiragino Sans GB, Microsoft YaHei, Helvetica Neue, Helvetica, Arial,
+          sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol;
+        z-index: 5000;
+      }
+      .enable_copy_btns_logo {
+        width: 100%;
+        background: #4595d5;
+        text-align: center;
+        font-size: 12px;
+        color: #e7f1ff;
+        line-height: 30px;
+        height: 30px;
+      }
+      .enable_copy_btns_btn {
+        display: block;
+        width: 128px;
+        height: 28px;
+        background: #7f5711;
+        border-radius: 4px;
+        color: #fff;
+        font-size: 12px;
+        border: 0;
+        outline: 0;
+        margin: 8px auto;
+        font-weight: 700;
+        cursor: pointer;
+        opacity: 0.9;
+      }
+      .enable_copy_btns_btn:hover {
+        opacity: 0.8;
+      }
+      .enable_copy_btns_btn:active {
+        opacity: 1;
+      }
+      .hidden {
+        display: none;
+      }
+      .bg {
+        background-color: #fcead6;
+      }
+    </style>
+  </head>
+  <body inmaintabuse="1">
+    <!-- 图片导航 -->
+    <div class="nav-container">
+      <div class="nav-item active">
+        <img
+          src="./c9c4e8f8b26aefb8cf069e25567a66b7.png"
+          data-full="./c9c4e8f8b26aefb8cf069e25567a66b7.png"
+        />
+      </div>
+      <div class="nav-item">
+        <img src="bg/dt.f2e03b27.png" data-full="bg/dt.f2e03b27.png" />
+      </div>
+      <div class="nav-item">
+        <img src="./thumb3.jpg" data-full="full3.jpg" alt="款式3" />
+      </div>
+      <div class="nav-item">
+        <img src="./thumb4.jpg" data-full="full4.jpg" alt="款式4" />
+      </div>
+    </div>
+
+    <!-- 效果预览 -->
+    <div class="preview-area">
+      <svg
+        class="logoSvg logoSvg0-1"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 150 112"
+        data-v-bece81f8=""
+      >
+        <defs data-v-bece81f8="">
+          <filter id="colorize1-0" data-v-bece81f8="">
+            <feColorMatrix
+              type="matrix"
+              id="colorMatrix1"
+              values="0.07058823529411765 0 0 0 0 0 0.16470588235294117 0 0 0 0 0 0.5333333333333333 0 0 0 0 0 1 0"
+              data-v-bece81f8=""
+            ></feColorMatrix>
+          </filter>
+          <filter id="colorize2-0" data-v-bece81f8="">
+            <feColorMatrix
+              type="matrix"
+              id="colorMatrix2"
+              values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"
+              data-v-bece81f8=""
+            ></feColorMatrix>
+          </filter>
+        </defs>
+        <image
+          href="/change_1.1abea8fa.png"
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          filter="url(#colorize1-0)"
+          data-v-bece81f8=""
+        ></image>
+        <!----><!----><!----><!---->
+        <image
+          href="/change_2.1f75a9b3.png"
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          filter="url(#colorize2-0)"
+          data-v-bece81f8=""
+        ></image>
+        <!----><!----><!----><!---->
+        <image
+          href="dt.d46f85be.png"
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          data-v-bece81f8=""
+        ></image>
+        <!----><!----><!----><!---->
+        <image
+          href="c9c4e8f8b26aefb8cf069e25567a66b7.png"
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          transform="matrix(1, 0, 0, 1, 45, 16) scale(0.4)"
+          data-v-bece81f8=""
+        ></image>
+      </svg>
+      <svg
+        class="logoSvg logoSvg0-1 bg hidden"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 100 66"
+        data-v-bece81f8=""
+        id="previewImage2"
+      >
+        <image
+          href="c9c4e8f8b26aefb8cf069e25567a66b7.png"
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          data-v-bece81f8=""
+          transform="matrix(1, 0, 0, 1, 9, 13) scale(0.5, 0.5)"
+        ></image>
+        <image
+          href="bg/dt.2a03df89.png"
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          data-v-bece81f8=""
+        ></image>
+      </svg>
+      <svg
+        class="logoSvg logoSvg0-1 previewImage hidden"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 200 133"
+        id="previewImage1"
+        data-v-bece81f8=""
+      >
+        <image
+          href="c9c4e8f8b26aefb8cf069e25567a66b7.png"
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          data-v-bece81f8=""
+          transform="matrix(1, 0, 0, 1, 51, 46) scale(0.5, 0.37)"
+        ></image>
+        <image
+          href="bg/dt.f2e03b27.png"
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          data-v-bece81f8=""
+        ></image>
+      </svg>
+    </div>
+
+    <!-- 生成按钮 -->
+    <button class="generate-btn">生成同款</button>
+
+    <script>
+      //     transform: matrix(1, 0, 0, 1, 53, 44) scale(0.48, 0.40); 1261/958 = 1.31628392 (素材图片的宽高比)
+      // 图片预加载（添加在初始化之后）
+      document.querySelectorAll('[data-full]').forEach((img) => {
+        const preload = new Image()
+        preload.src = img.dataset.full
+      })
+      // 图片点击预览功能
+      document.querySelectorAll('.nav-item').forEach((item) => {
+        const thumb = item.querySelector('img')
+
+        item.addEventListener('click', function () {
+          // 移除所有激活状态
+          document.querySelectorAll('.nav-item').forEach((i) => {
+            i.classList.remove('active')
+          })
+
+          // 设置当前激活
+          this.classList.add('active')
+
+          // 显示大图
+          const previewImg = document.getElementById('previewImage')
+          previewImg.src = thumb.dataset.full
+          previewImg.style.opacity = 0
+
+          // 淡入效果
+          setTimeout(() => {
+            previewImg.style.opacity = 1
+          }, 50)
+        })
+      })
+
+      // 初始化显示第一张图片
+      document.querySelector('.nav-item').click()
+
+      // 生成按钮点击效果
+      document
+        .querySelector('.generate-btn')
+        .addEventListener('click', function () {
+          this.style.transform = 'scale(0.98)'
+          setTimeout(() => {
+            this.style.transform = 'scale(1)'
+          }, 100)
+          // 这里可以添加生成逻辑
+          console.log('开始生成同款...')
+        })
+    </script>
+  </body>
+</html>
